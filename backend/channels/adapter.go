@@ -7,11 +7,11 @@ import (
 
 // SyncedConversation represents a conversation fetched from an external channel.
 type SyncedConversation struct {
-	ExternalID    string
+	ExternalID     string
 	ExternalUserID string
-	CustomerName  string
-	LastMessageAt time.Time
-	Metadata      map[string]interface{}
+	CustomerName   string
+	LastMessageAt  time.Time
+	Metadata       map[string]interface{}
 }
 
 // SyncedMessage represents a message fetched from an external channel.
@@ -41,6 +41,9 @@ type ChannelAdapter interface {
 
 	// FetchMessages returns messages for a conversation since `since`.
 	FetchMessages(ctx context.Context, conversationID string, since time.Time) ([]SyncedMessage, error)
+
+	// SendMessage sends a message to a customer (userID = external conversation ID).
+	SendMessage(ctx context.Context, userID, content string) error
 
 	// HealthCheck verifies the channel connection is working.
 	HealthCheck(ctx context.Context) error

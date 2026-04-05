@@ -399,3 +399,14 @@ func (z *ZaloOAAdapter) HealthCheck(ctx context.Context) error {
 	_, err := z.doRequest(ctx, "GET", zaloAPIBaseV2+"/getoa", nil)
 	return err
 }
+
+func (z *ZaloOAAdapter) SendMessage(ctx context.Context, userID, content string) error {
+	_, err := z.doRequest(ctx, "POST", zaloAPIBaseV2+"/message", map[string]interface{}{
+		"user_id": userID,
+		"message": map[string]interface{}{
+			"type":    "text",
+			"content": content,
+		},
+	})
+	return err
+}

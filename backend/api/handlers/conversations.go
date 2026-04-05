@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/vietbui/chat-quality-agent/api/middleware"
+	"github.com/vietbui/chat-quality-agent/channels"
+	"github.com/vietbui/chat-quality-agent/config"
 	"github.com/vietbui/chat-quality-agent/db"
 	"github.com/vietbui/chat-quality-agent/db/models"
 	"github.com/vietbui/chat-quality-agent/pkg"
@@ -85,14 +88,14 @@ func ListConversations(c *gin.Context) {
 	}
 
 	type ConvResponse struct {
-		ID             string  `json:"id"`
-		ChannelID      string  `json:"channel_id"`
-		ChannelName    string  `json:"channel_name"`
-		ChannelType    string  `json:"channel_type"`
-		CustomerName   string  `json:"customer_name"`
-		LastMessageAt  *string `json:"last_message_at"`
-		MessageCount   int     `json:"message_count"`
-		CreatedAt      string  `json:"created_at"`
+		ID            string  `json:"id"`
+		ChannelID     string  `json:"channel_id"`
+		ChannelName   string  `json:"channel_name"`
+		ChannelType   string  `json:"channel_type"`
+		CustomerName  string  `json:"customer_name"`
+		LastMessageAt *string `json:"last_message_at"`
+		MessageCount  int     `json:"message_count"`
+		CreatedAt     string  `json:"created_at"`
 	}
 
 	results := make([]ConvResponse, len(conversations))
@@ -475,4 +478,54 @@ func exportMessagesCSV(c *gin.Context, conversations []models.Conversation, msgM
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	c.String(http.StatusOK, sb.String())
+}
+
+func SendReply(c *gin.Context) {
+	tenantID := middleware.GetTenantID(c)
+	conversationID := c.Param("conversationId")
+
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Content is required"})
+		return
+	}
+
+	var conv models.Conversation
+	if err := db.DB.Where("id = ? AND tenant_id = ?", conversationID, tenantID).First(&conv).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "conversation_not_found"})
+		return
+	}
+
+	var channel models.Channel
+	if err := db.DB.Where("id = ? AND tenant_id = ?", conv.ChannelID, tenantID).First(&channel).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "channel_not_found"})
+		return
+	}
+
+	credBytes, err := pkg.Decrypt(channel.CredentialsEncrypted, config.GetConfig().EncryptionKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "decrypt_credentials_failed"})
+		return
+	}
+
+	adapter, err := channels.NewAdapter(channel.ChannelType, credBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "adapter_init_failed"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+	defer cancel()
+
+	if err := adapter.SendMessage(ctx, conv.ExternalUserID, req.Content); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "send_failed", "message": err.Error()})
+		return
+	}
+
+	db.LogActivity(tenantID, "", "system", "message.sent", "conversation", conversationID,
+		fmt.Sprintf("Sent reply to %s", conv.CustomerName), "", "")
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }

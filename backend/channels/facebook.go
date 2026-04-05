@@ -1,6 +1,7 @@
 package channels
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -260,4 +261,34 @@ func (f *FacebookAdapter) HealthCheck(ctx context.Context) error {
 	url := fmt.Sprintf("%s/%s?fields=id,name", fbGraphBase, f.creds.PageID)
 	_, err := f.doRequest(ctx, url)
 	return err
+}
+
+func (f *FacebookAdapter) SendMessage(ctx context.Context, userID, content string) error {
+	url := fmt.Sprintf("%s/me/messages?access_token=%s", fbGraphBase, f.creds.AccessToken)
+
+	payload := map[string]interface{}{
+		"messaging_type": "RESPONSE",
+		"recipient":      map[string]string{"id": userID},
+		"message":        map[string]string{"text": content},
+	}
+
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create facebook message request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("facebook message request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("facebook message failed: status=%d body=%s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
 }
