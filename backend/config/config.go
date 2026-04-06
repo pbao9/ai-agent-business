@@ -97,3 +97,16 @@ func getEnvInt(key string, fallback int) int {
 	}
 	return fallback
 }
+
+var globalConfig *Config
+
+func GetConfig() *Config {
+	if globalConfig == nil {
+		cfg, err := Load()
+		if err != nil {
+			panic(err)
+		}
+		globalConfig = cfg
+	}
+	return globalConfig
+}
