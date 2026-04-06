@@ -169,8 +169,9 @@ const claudeModels = [
   { title: 'Claude Opus 4 (Most Capable)', value: 'claude-opus-4' },
 ]
 const geminiModels = [
-  { title: 'Gemini 2.5 Flash (Fast & Cheap)', value: 'gemini-2.5-flash' },
+  { title: 'Gemini 3.0 Flash Preview (Fast & Cheap)', value: 'gemini-3-flash-preview' },
   { title: 'Gemini 2.5 Flash Lite (Fastest)', value: 'gemini-2.5-flash-lite' },
+  { title: 'Gemini 2.5 Flash (Fast & Cheap)', value: 'gemini-2.5-flash' },
   { title: 'Gemini 2.5 Pro (Most Capable)', value: 'gemini-2.5-pro' },
 ]
 
@@ -188,7 +189,7 @@ const modelOptions = computed(() => {
 
 function onProviderChange() {
   // Reset to default model when switching provider
-  aiSettings.model = aiSettings.provider === 'claude' ? 'claude-sonnet-4-6' : 'gemini-2.5-flash'
+  aiSettings.model = aiSettings.provider === 'claude' ? 'claude-sonnet-4-6' : 'gemini-3-flash-preview'
 }
 
 async function loadSettings() {

@@ -47,7 +47,7 @@ func CalculateCostUSD(provider, model string, inputTokens, outputTokens int) flo
 		switch model {
 		case "gemini-2.0-flash":
 			inputRate, outputRate = 0.075, 0.30
-		case "gemini-3.0-flash":
+		case "gemini-3-flash-preview":
 			inputRate, outputRate = 0.075, 0.30
 		default:
 			inputRate, outputRate = 0.075, 0.30 // default flash pricing
